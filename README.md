@@ -7,3 +7,8 @@ docker image for openresty with modsecurity
 docker build -t openresty-modsec:latest .
 ```
 
+## Run
+
+```bash
+docker run -it -p 80:80 -d openresty-modsec:latest
+```
