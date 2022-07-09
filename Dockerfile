@@ -33,7 +33,12 @@ FROM debian:buster-slim AS APP
 
 MAINTAINER devops@up-devops.io
 
-ENV TZ="Asia/Hong_Kong"
+ENV TZ="Asia/Singapore"
+ENV PATH="$PATH:/usr/local/openresty/bin:/usr/local/openresty/nginx/sbin"
+
+COPY --from=builder /usr/local/openresty/ /usr/local/openresty/
+COPY --from=builder /usr/local/modsecurity/ /usr/local/modsecurity/
+COPY ./nginx/conf/ /usr/local/openresty/nginx
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -43,29 +48,19 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update \
         lsb-base \
         lsb-release \
         software-properties-common \
-        wget curl telnet net-tools nano inetutils-ping tzdata procps \
-        libgeoip1 libxml2 libyajl2 \
-    && wget -qO /tmp/pubkey.gpg https://openresty.org/package/pubkey.gpg \
-    && DEBIAN_FRONTEND=noninteractive apt-key add /tmp/pubkey.gpg \
-    && rm /tmp/pubkey.gpg \
-    && DEBIAN_FRONTEND=noninteractive add-apt-repository -y "deb http://openresty.org/package/debian $(lsb_release -sc) openresty" \
-    && DEBIAN_FRONTEND=noninteractive apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        openresty-opm \
+        wget curl tzdata procps \
+        liburi-encode-perl libgeoip1 libxml2 libyajl2 \
     && DEBIAN_FRONTEND=noninteractive apt-get autoremove -y \
-    && ln -s /usr/local/openresty/nginx/conf/ /etc/nginx \
-    && rm -rf /var/lib/apt/lists/* \
-    && ln -sf /proc/self/fd/1 /usr/local/openresty/nginx/logs/access.log \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN ln -sf /proc/self/fd/1 /usr/local/openresty/nginx/logs/access.log \
     && ln -sf /proc/self/fd/2 /usr/local/openresty/nginx/logs/error.log \
     && opm get timebug/lua-resty-redis-ratelimit
-
-COPY --from=builder /usr/local/openresty/ /usr/local/openresty/
-COPY --from=builder /usr/local/modsecurity/ /usr/local/modsecurity/
 
 # Add additional binaries into PATH for convenience
 ENV PATH="$PATH:/usr/local/openresty/luajit/bin:/usr/local/openresty/nginx/sbin:/usr/local/openresty/bin"
 
-CMD ["/usr/bin/openresty", "-g", "daemon off;"]
+CMD ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]
 
 # Use SIGQUIT instead of default SIGTERM to cleanly drain requests
 # See https://github.com/openresty/docker-openresty/blob/master/README.md#tips--pitfalls
